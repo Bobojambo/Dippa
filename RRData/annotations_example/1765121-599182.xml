@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<annotation>
+	<folder>images</folder>
+	<filename>1765121-599173</filename>
+	<path>c:\Users\jmazko\AppData\Local\Continuum\Miniconda2\data\userID-00046\validations\images\1765121-599173.jpg</path>
+	<imageID>1765121</imageID>
+	<annotationID/>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>0</width>
+		<height>0</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<weather>Fog</weather>
+	<light>Bright</light>
+	<object>
+		<name>Vessel</name>
+		<pose>left</pose>
+		<bndbox>
+			<xmin>21</xmin>
+			<ymin>290</ymin>
+			<xmax>65</xmax>
+			<ymax>315</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>Tanker</name>
+		<moving>1</moving>
+		<pose>right</pose>
+		<bndbox>
+			<xmin>65</xmin>
+			<ymin>216</ymin>
+			<xmax>748</xmax>
+			<ymax>378</ymax>
+		</bndbox>
+	</object>
+</annotation>

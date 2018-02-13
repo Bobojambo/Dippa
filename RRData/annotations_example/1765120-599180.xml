@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<annotation>
+	<folder>images</folder>
+	<filename>1765120</filename>
+	<path>d:\Users\jfeyerabend\AppData\Local\Continuum\imageAnnoteCloud_0.2.5\imageAnnoteCloud_0.2.5\data\userID-00019\annotations\images\1765120.jpg</path>
+	<imageID>1765120</imageID>
+	<annotationID/>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>800</width>
+		<height>600</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<weather>Clear</weather>
+	<light>Bright</light>
+	<object>
+		<name>Shore</name>
+		<truncated>1</truncated>
+		<occluded>1</occluded>
+		<bndbox>
+			<xmin>1</xmin>
+			<ymin>145</ymin>
+			<xmax>629</xmax>
+			<ymax>275</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>Shore</name>
+		<truncated>1</truncated>
+		<occluded>1</occluded>
+		<bndbox>
+			<xmin>732</xmin>
+			<ymin>216</ymin>
+			<xmax>799</xmax>
+			<ymax>277</ymax>
+		</bndbox>
+	</object>
+	<object>
+		<name>Bulk carrier</name>
+		<vesselName>KANG HONG</vesselName>
+		<imo>9323558</imo>
+		<mmsi>477995400</mmsi>
+		<moving>1</moving>
+		<pose>left</pose>
+		<bndbox>
+			<xmin>87</xmin>
+			<ymin>159</ymin>
+			<xmax>757</xmax>
+			<ymax>431</ymax>
+		</bndbox>
+	</object>
+</annotation>
