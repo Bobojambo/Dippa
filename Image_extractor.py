@@ -93,7 +93,7 @@ def get_sub_images(images_dict):
                 #print("xmin: ", xmin, " ymin: ", ymin, " xmax: ", xmax, " ymax: ", ymax)
                 print(xmin,ymax,xmax-xmin,ymax-ymin)
                 img_cropped = img.crop((xmin,ymin,xmax,ymax))
-                #img_cropped.show()
+                img_cropped.show()
                 images.append(img_cropped)
                 classes.append(object_name)
 
