@@ -11,6 +11,10 @@ import glob
 import matplotlib.pyplot as plt
 from PIL import Image
 import sys
+import class_extractor
+import os
+import shutil
+import csv
 
 def create_fullImage_dict():
     
@@ -93,12 +97,48 @@ def get_sub_images(images_dict):
                 #print("xmin: ", xmin, " ymin: ", ymin, " xmax: ", xmax, " ymax: ", ymax)
                 print(xmin,ymax,xmax-xmin,ymax-ymin)
                 img_cropped = img.crop((xmin,ymin,xmax,ymax))
-                img_cropped.show()
                 images.append(img_cropped)
                 classes.append(object_name)
+                
+                #img_cropped.save('image_png')
 
+    return images, classes
+
+def save_images_to_folder(images, classes):
         
-    return (images, classes)        
+    path = "Images/"
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path)
+    
+    
+    index = 0
+    for image in images:
+        #image.show()
+        filename = "{}{}.jpg".format(path,index)
+        image.save(filename)
+        index += 1
+        if index == len(images):
+            break
+            
+    path = "Classes/"
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path)
+    
+    with open("Classes/classes.csv", "w") as output:
+        writer = csv.writer(output, lineterminator='\n')
+        for line in classes:
+            writer.writerow([line])   
+    
+    return
 
-images_dict = create_fullImage_dict()
-(images, classes) = get_sub_images(images_dict)
+if __name__ == "__main__":
+    
+    images_dict = create_fullImage_dict()
+    
+    images, classes = get_sub_images(images_dict)    
+    
+    parent_list, dictionaries_list = class_extractor.return_class_dictionaries()
+    
+    save_images_to_folder(images, classes)
