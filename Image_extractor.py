@@ -19,8 +19,8 @@ import csv
 def create_fullImage_dict():
     
     #Test or full path
-    #images_path = 'RRData/images/*.jpg'
-    images_path = 'RRData/images_example/*.jpg'
+    images_path = 'RRData/images/*.jpg'
+    #images_path = 'RRData/images_example/*.jpg'
     
     images_dict = {}
     
@@ -29,11 +29,8 @@ def create_fullImage_dict():
         first_split = filename.split('.')
         without_jpg_string = first_split[0]
         image_number_string = without_jpg_string.split('\\')[-1]
-        #RRData/images\2319311 for some reason
-        
-        img = Image.open(filename)
-        #numpy_img = np.array(img)
-        images_dict[image_number_string] = img
+        #RRData/images\2319311 for some reason   
+        images_dict[image_number_string] = filename       
         
     return images_dict
 
@@ -43,8 +40,8 @@ def get_sub_images(images_dict):
     classes = []
  
     #Full or test path
-    #xml_path = 'RRData/annotations/*.xml'
-    xml_path = 'RRData/annotations_example/*.xml'
+    xml_path = 'RRData/annotations/*.xml'
+    #xml_path = 'RRData/annotations_example/*.xml'
         
     for filename in glob.glob(xml_path):
         
@@ -54,8 +51,8 @@ def get_sub_images(images_dict):
         without_xml_string = first_split[0]
         xml_string = without_xml_string.split('\\')[-1]
         imageString = xml_string.split('-')[0] #Without ending -xxxxxx -part
-        img = images_dict[imageString] #Search from previously created dict
-        
+        img_filename = images_dict[imageString] #Search from previously created dict
+        img = Image.open(img_filename)
 
         #Get objects and bounding boxes from XML-files
         tree = ET.parse(filename)
@@ -95,7 +92,7 @@ def get_sub_images(images_dict):
             else:           
                 #The box is a 4-tuple defining the left, upper, right, and lower pixel coordinate.                
                 #print("xmin: ", xmin, " ymin: ", ymin, " xmax: ", xmax, " ymax: ", ymax)
-                print(xmin,ymax,xmax-xmin,ymax-ymin)
+                #print(xmin,ymax,xmax-xmin,ymax-ymin)
                 img_cropped = img.crop((xmin,ymin,xmax,ymax))
                 images.append(img_cropped)
                 classes.append(object_name)
@@ -115,11 +112,11 @@ def save_images_to_folder(images, classes):
     index = 0
     for image in images:
         #image.show()
-        filename = "{}{}.jpg".format(path,index)
+        filename = "{}image{}.jpg".format(path,index)
         image.save(filename)
         index += 1
-        if index == len(images):
-            break
+        #if index == len(images):
+        #    break
             
     path = "Classes/"
     if os.path.exists(path):
@@ -128,8 +125,10 @@ def save_images_to_folder(images, classes):
     
     with open("Classes/classes.csv", "w") as output:
         writer = csv.writer(output, lineterminator='\n')
+        index = 0
         for line in classes:
-            writer.writerow([line])   
+            writer.writerow([index, line])   
+            index += 1
     
     return
 
