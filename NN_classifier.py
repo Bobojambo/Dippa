@@ -28,6 +28,7 @@ def load_data():
     for filename in glob.glob('Images/*.jpg'):
         list_not_sorted.append(filename)
     
+    #Sort according to the number between image'xxxx'.jpg
     list_sorted = sorted(list_not_sorted, key=lambda x: int(x.split("image")[1].split('.')[0]))
     
     filepaths = []
