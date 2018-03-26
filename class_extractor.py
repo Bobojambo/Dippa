@@ -80,5 +80,40 @@ def return_class_dictionaries():
     
     return parent_list, dictionaries_list
 
+def return_upper_category_target_list(original_targets_categories):
+    
+    parent_list, dictionaries = return_class_dictionaries()
+    
+    child_2_to_1_dict = dictionaries[0]
+    child_3_to_2_dict = dictionaries[1]
+    child_4_to_3_dict = dictionaries[2]
+    child_5_to_4_dict = dictionaries[3]
+    
+    target_labels = []
+    for category in original_targets_categories:
+        if category in parent_list:
+            target_labels.append(category)
+        else:
+            #.join because the return values are lists, even though they shouldnt be
+            return_value = child_5_to_4_dict.get(category)
+            if return_value is not None:
+                category = ''.join(return_value)
+            
+            return_value = child_4_to_3_dict.get(category)
+            if return_value is not None:
+                category = ''.join(return_value)
+            
+            return_value = child_3_to_2_dict.get(category)
+            if return_value is not None:
+                category = ''.join(return_value)
+                
+            return_value = child_2_to_1_dict.get(category)
+            if return_value is not None:
+                category = ''.join(return_value) 
+            
+            target_labels.append(category)            
+    
+    return target_labels 
+
 if __name__ == "__main__":
     parent_list, dictionaries_list = return_class_dictionaries()

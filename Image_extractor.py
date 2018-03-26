@@ -101,9 +101,11 @@ def get_sub_images(images_dict):
 
     return images, classes
 
-def save_images_to_folder(images, classes):
+def save_images_to_folder(images, path=None):
+    
+    if path == None:
+        path = "Images/"
         
-    path = "Images/"
     if os.path.exists(path):
         shutil.rmtree(path)
     os.makedirs(path)
@@ -117,7 +119,20 @@ def save_images_to_folder(images, classes):
         index += 1
         #if index == len(images):
         #    break
-            
+    return
+
+def create_resized_images(images, width=128, height=128):
+    reSizedImages = []
+    for image in images:
+        reSizedImage = image.resize((width, height))
+        reSizedImages.append(reSizedImage)
+    
+    save_images_to_folder(reSizedImages, path="ResizedImages/")
+    
+    return 
+
+def create_classes_csv(classes):
+
     path = "Classes/"
     if os.path.exists(path):
         shutil.rmtree(path)
@@ -140,4 +155,6 @@ if __name__ == "__main__":
     
     parent_list, dictionaries_list = class_extractor.return_class_dictionaries()
     
-    save_images_to_folder(images, classes)
+    save_images_to_folder(images)
+    create_resized_images(images)
+    create_classes_csv(classes)
