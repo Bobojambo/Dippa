@@ -54,6 +54,7 @@ def load_data(globPath = 'Images/*.jpg'):
 
 def create_model(X_train, X_test, y_train, y_test):
     
+
     #l1 = Regularizer()
     input_shape = X_train.shape[1:]
 
@@ -64,6 +65,24 @@ def create_model(X_train, X_test, y_train, y_test):
                     kernel_size = (11, 11),
                     activation = 'relu',
                     input_shape=input_shape))
+
+
+   #Sort according to the number between image'xxxx'.jpg
+   list_sorted = sorted(list_not_sorted, key=lambda x: int(x.split("image")[1].split('.')[0]))
+
+   #l1 = Regularizer()
+
+    
+   model = Sequential()
+    
+   model.add(Conv2D(filters = 32, 
+                     kernel_size = (5, 5),
+                     activation = 'relu',
+                     padding = 'same',
+                     input_shape=(128,128,3)))    
+   model.add(MaxPooling2D(2,2))
+   model.add(Dropout(0.25))
+
    
     model.add(MaxPooling2D(2,2))
    #model.add(Dropout(0.25))
