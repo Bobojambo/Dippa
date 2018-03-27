@@ -4,6 +4,9 @@ Created on Fri Feb 23 12:41:41 2018
 
 @author: TaitavaBobo§
 """
+
+from collections import Counter
+from random import randint
 from skimage import data, io, filters
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,6 +23,8 @@ from keras.layers.convolutional import Conv2D, MaxPooling2D
 from keras.layers import CuDNNLSTM, GRU, LSTM
 from sklearn.preprocessing import LabelBinarizer
 from keras.optimizers import SGD, Adam
+from keras.models import Model
+from keras.applications.vgg16 import VGG16
 
 def load_data(globPath = 'Images/*.jpg'):
 
@@ -47,52 +52,95 @@ def load_data(globPath = 'Images/*.jpg'):
     
     return filepaths, targets
 
-
 def create_model(X_train, X_test, y_train, y_test):
     
     #l1 = Regularizer()
-    
-   model = Sequential()
-    
-   model.add(Conv2D(filters = 32, 
-                     kernel_size = (5, 5),
-                     activation = 'relu',
-                     padding = 'same',
-                     input_shape=(128,128,3)))    
-   model.add(MaxPooling2D(2,2))
-   model.add(Dropout(0.25))
-   
-   model.add(Conv2D(filters = 32, 
-                     kernel_size = (5, 5),
-                     padding = 'same',
-                     activation = 'relu'))
-   model.add(MaxPooling2D(2,2))
-   model.add(Dropout(0.2))
-    
-   #model.add(Conv2D(filters = 32, 
-   #                  kernel_size = (5, 5),
-   #                  padding = 'same',
-   #                  activation = 'relu'))
-   #model.add(MaxPooling2D(2,2))
-   #model.add(Dropout(0.1))
-   
+    input_shape = X_train.shape[1:]
 
-   model.add(Flatten())
-   model.add(Dense(256, activation = 'relu'))
-   model.add(Dense(y_train.shape[1], activation='softmax'))
+    model = Sequential()
+
+    model.add(Conv2D(filters = 96, 
+                    strides=4,
+                    kernel_size = (11, 11),
+                    activation = 'relu',
+                    input_shape=input_shape))
+   
+    model.add(MaxPooling2D(2,2))
+   #model.add(Dropout(0.25))
+   
+    model.add(Conv2D(filters = 256, 
+    kernel_size = (5, 5),
+    padding='same',
+    activation = 'relu'))
+       #model.add(Dropout(0.2))   
+    model.add(MaxPooling2D(2,2))
+
+    model.add(Conv2D(filters = 384, 
+                 kernel_size = (3, 3),
+                 padding='same',
+                 activation = 'relu'))
+   #model.add(Dropout(0.1))
+    model.add(Conv2D(filters = 384, 
+                 kernel_size = (3, 3),
+                 padding='same',
+                 activation = 'relu'))
+                  
+    model.add(Conv2D(filters = 384, 
+                 kernel_size = (3, 3),
+                 padding='same',
+                 activation = 'relu'))
+                   
+    model.add(Conv2D(filters = 256, 
+                 kernel_size = (3, 3),
+                 padding='same',
+                 activation = 'relu'))
     
-   model.summary()
+
+    model.add(Flatten())
+    model.add(Dense(2048, activation = 'relu'))
+    #model.add(Dropout(0.2))
+    #model.add(Dense(256, activation = 'relu'))
+    #model.add(Dropout(0.2))
+    model.add(Dense(y_train.shape[1], activation='softmax'))
+
+    model.summary()
+
+   #optimizer = SGD(lr = 1e-0)
+    optimizer = Adam(lr = 1)
+    model.compile(optimizer = optimizer,
+    loss = 'categorical_crossentropy',
+    metrics = ['accuracy'])
+
+    return model
+
+def create_VGG_model(X_train, X_test, y_train, y_test):
     
-   optimizer = SGD(lr = 1e-1)
-   model.compile(optimizer = optimizer,
-                  loss = 'categorical_crossentropy',
-                  metrics = ['accuracy'])
     
-   return model
+    base_model = VGG16(weights='imagenet', include_top=False, input_shape = (128,128,3))
+    
+    w = base_model.output
+    w = Flatten()(w)
+    w = Dense(128, activation='relu')(w)
+    output = Dense(6, activation = 'softmax')(w)
+    model = Model(inputs = [base_model.input], outputs = [output])
+    
+    model.layers[-5].trainable = True
+    model.layers[-6].trainable = True
+    model.layers[-7].trainable = True
+    
+    model.summary()
+
+    optimizer = SGD(lr = 0.0001)
+    #optimizer = Adam(lr = 0.01)
+    model.compile(optimizer = optimizer,
+    loss = 'categorical_crossentropy',
+    metrics = ['accuracy'])
+
+    return model
 
 def train_model(model, X_train, X_test, y_train, y_test):
 
-    history = model.fit(X_train, y_train, epochs = 150, 
+    history = model.fit(X_train, y_train, epochs = 25, batch_size = 126,
             validation_data = (X_test, y_test))
 
 
@@ -114,21 +162,21 @@ def train_model(model, X_train, X_test, y_train, y_test):
     plt.tight_layout()
     plt.savefig("Accuracy.pdf", bbox_inches = "tight")
     
+    return history
 
 def split_data(imagedata, targets):
     
-    X_train, X_test, y_train, y_test = model_selection.train_test_split(imagedata, targets, test_size = 0.2, random_state = 1924)
+    X_train, X_test, y_train, y_test = model_selection.train_test_split(imagedata, targets, test_size = 0.2)
     
     return X_train, X_test, y_train, y_test
 
-
-if __name__ == '__main__':
+def define_target_categories(imagefilepaths, targets):
     
-    parent_list, dictionaries = class_extractor.return_class_dictionaries()
+    categories_original_labels = Counter(targets)
     
-    imagefilepaths, targets = load_data(globPath = 'ResizedImages/*.jpg')    
     
     upper_category_labels = class_extractor.return_upper_category_target_list(targets)
+    categories_upper_labels = Counter(upper_category_labels)
     
     imageData = []
     upper_category_labels_rgb_images = []
@@ -151,30 +199,41 @@ if __name__ == '__main__':
     #Remove categories not in parent list
     #Current filterin in class extractor; these categories are not in any subgroup
     for label in upper_category_labels_rgb_images:
-        if label in parent_list:            
-            temp1.append(imageData[i])
-            temp2.append(label)
-        i = i + 1
+        if label in parent_list:
+            #Remove ice and weather phenomen because not enough data
+            if label == "Ice" or label == "Weather phenomen" or label == "Misc object" or label == "Island":
+                i = i + 1
+                continue
+            else:         
+                temp1.append(imageData[i])
+                temp2.append(label)
+                i = i + 1
         
     finalData = np.array(temp1)
     categories = temp2
     
-    #output = set()
-    #for x in upper_category_labels_rgb_images:
-    #    output.add(x)
-    #print(output)
+    categories_target_labels = Counter(categories)
     
-    X_train, X_test, y_train, y_test = split_data(finalData, categories) 
+    return finalData, categories
+
+if __name__ == '__main__':   
+    
+    if 'data_loaded' not in locals():    
+        parent_list, dictionaries = class_extractor.return_class_dictionaries()    
+        imagefilepaths, targets = load_data(globPath = 'ResizedImages/*.jpg')    
+        finalData, categories = define_target_categories(imagefilepaths, targets)
+        X_train, X_test, y_train, y_test = split_data(finalData, categories) 
+        data_loaded = True    
+        
+        lb = LabelBinarizer()
+        lb.fit(categories)
+        categories_transformed = lb.transform(categories)
+        y_train = lb.transform(y_train)
+        y_test = lb.transform(y_test)
     
     
-    lb = LabelBinarizer()
-    lb.fit(y_train)
-    y_train = lb.transform(y_train)
-    y_test = lb.transform(y_test)
-    
-    
-    model = create_model(X_train, X_test, y_train, y_test)
-    train_model(model, X_train, X_test, y_train, y_test)
+    model = create_VGG_model(X_train, X_test, y_train, y_test)
+    history = train_model(model, X_train, X_test, y_train, y_test)
 
 
     
