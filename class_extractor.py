@@ -80,7 +80,7 @@ def return_class_dictionaries():
     
     return parent_list, dictionaries_list
 
-def return_upper_category_target_list(original_targets_categories):
+def return_upper_category_target_list(original_targets_categories, depth = 1):
     
     parent_list, dictionaries = return_class_dictionaries()
     
@@ -90,6 +90,7 @@ def return_upper_category_target_list(original_targets_categories):
     child_5_to_4_dict = dictionaries[3]
     
     target_labels = []
+    vessel_child_target_labels = []
     for category in original_targets_categories:
         if category in parent_list:
             target_labels.append(category)
@@ -106,14 +107,25 @@ def return_upper_category_target_list(original_targets_categories):
             return_value = child_3_to_2_dict.get(category)
             if return_value is not None:
                 category = ''.join(return_value)
+                pre_category = category
                 
             return_value = child_2_to_1_dict.get(category)
             if return_value is not None:
-                category = ''.join(return_value) 
-            
-            target_labels.append(category)            
+                #To map the labels to depth 2 for vessel categories
+                #return value checks that the category's parent category is vessel
+                #if depth == 2:
+                #    if return_value == "Vessel":
+                #        target_labels.append(category)
+                #else:
+                category = ''.join(return_value)
+                if category == "Vessel":
+                    vessel_child_target_labels.append(pre_category)
+                    
+            target_labels.append(category)
+            pre_category = "empty"
+                    
     
-    return target_labels 
+    return target_labels, vessel_child_target_labels
 
 if __name__ == "__main__":
     parent_list, dictionaries_list = return_class_dictionaries()

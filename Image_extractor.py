@@ -34,18 +34,22 @@ def create_fullImage_dict():
         
     return images_dict
 
-def get_sub_images(images_dict):
+def get_sub_images(images_dict, resize_argument, test_images_argument):
     
     images = []
     classes = []
  
     #Full or test path
-    xml_path = 'RRData/annotations/*.xml'
-    #xml_path = 'RRData/annotations_example/*.xml'
+    if test_images_argument == "Y":
+        xml_path = 'RRData/annotations_example/*.xml'
+    else:
+        xml_path = 'RRData/annotations/*.xml'
+        
+    
         
     for filename in glob.glob(xml_path):
         
-        print(filename)
+        #print(filename)
         #Select image based on xml-file name
         first_split = filename.split('.')
         without_xml_string = first_split[0]
@@ -89,15 +93,35 @@ def get_sub_images(images_dict):
                 sys.exit("No full bounding on object")
                 
             #Extract subimage from img with bounding box
-            else:           
-                #The box is a 4-tuple defining the left, upper, right, and lower pixel coordinate.                
-                #print("xmin: ", xmin, " ymin: ", ymin, " xmax: ", xmax, " ymax: ", ymax)
-                #print(xmin,ymax,xmax-xmin,ymax-ymin)
-                img_cropped = img.crop((xmin,ymin,xmax,ymax))
-                images.append(img_cropped)
-                classes.append(object_name)
-                
-                #img_cropped.save('image_png')
+            else:
+                #Resize the cropped area to square
+                if resize_argument == "True":
+                #print("x_max, x_min, x_distance: ", xmax," ", xmin , " ", xmax-xmin)
+                #print("y_max, y_min, y_distance: ", ymax," ", ymin , " ", ymax-ymin)
+                    y_gap = ymax - ymin
+                    x_gap = xmax - xmin
+                    if x_gap > y_gap:
+                        pixels_to_add = (x_gap - y_gap)/2
+                        ymin = ymin - pixels_to_add
+                        ymax = ymax + pixels_to_add
+                    else:
+                        pixels_to_add = (y_gap - x_gap)/2
+                        xmin = xmin - pixels_to_add
+                        xmax = xmax + pixels_to_add     
+                        
+                    img_cropped = img.crop((xmin,ymin,xmax,ymax))
+                    images.append(img_cropped)
+                    classes.append(object_name)
+                    
+                else:
+                    #The box is a 4-tuple defining the left, upper, right, and lower pixel coordinate.                
+                    #print("xmin: ", xmin, " ymin: ", ymin, " xmax: ", xmax, " ymax: ", ymax)
+                    #print(xmin,ymax,xmax-xmin,ymax-ymin)
+                    img_cropped = img.crop((xmin,ymin,xmax,ymax))
+                    images.append(img_cropped)
+                    classes.append(object_name)         
+        #break for single image testing
+        #break
 
     return images, classes
 
@@ -127,7 +151,7 @@ def create_resized_images(images, width=128, height=128):
         reSizedImage = image.resize((width, height))
         reSizedImages.append(reSizedImage)
     
-    save_images_to_folder(reSizedImages, path="ResizedImages/")
+    save_images_to_folder(reSizedImages, path="ResizedImages64x64/")
     
     return 
 
@@ -149,12 +173,20 @@ def create_classes_csv(classes):
 
 if __name__ == "__main__":
     
-    images_dict = create_fullImage_dict()
+    input_var = input("Square subimage extraction (True/False): ")    
+    argument = str(input_var)
+    input_var = str(input("Test images run (Y/N): "))
+    test_images_argument = input_var
     
-    images, classes = get_sub_images(images_dict)    
-    
-    parent_list, dictionaries_list = class_extractor.return_class_dictionaries()
-    
-    save_images_to_folder(images)
-    create_resized_images(images)
-    create_classes_csv(classes)
+    if argument == "True" or argument == "False":
+        images_dict = create_fullImage_dict()
+        
+        images, classes = get_sub_images(images_dict, argument, test_images_argument)    
+        
+        parent_list, dictionaries_list = class_extractor.return_class_dictionaries()
+        
+        save_images_to_folder(images)
+        create_resized_images(images)
+        create_classes_csv(classes)
+    else:
+        print("Wrong input argument")

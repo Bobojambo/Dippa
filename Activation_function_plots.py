@@ -41,7 +41,7 @@ def softmax(x):
     return x
 
 def sigmoid(x_values):
-    title = "Sigmoid (x)"
+    title = "Logistic sigmoid (x)"
     y_values = []
     for x_value in x_values:
         y_value = 1 / (1 + np.exp(-x_value))
