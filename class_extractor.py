@@ -80,7 +80,21 @@ def return_class_dictionaries():
     
     return parent_list, dictionaries_list
 
-def return_upper_category_target_list(original_targets_categories, depth = 1):
+def check_bad_category(category, parent_list, dictionaries):
+    category_exists = False
+    for parent_category in parent_list:
+        if category == parent_category:
+            category_exists = True
+            return category_exists
+    
+    for dictionary in dictionaries:
+        if category in dictionary:
+            category_exists = True
+            return category_exists
+    
+    return category_exists
+
+def return_upper_category_target_list(original_targets_categories, vessel_classification = False):
     
     parent_list, dictionaries = return_class_dictionaries()
     
@@ -89,43 +103,51 @@ def return_upper_category_target_list(original_targets_categories, depth = 1):
     child_4_to_3_dict = dictionaries[2]
     child_5_to_4_dict = dictionaries[3]
     
+    vessel_labels = []
     target_labels = []
-    vessel_child_target_labels = []
-    for category in original_targets_categories:
-        if category in parent_list:
-            target_labels.append(category)
-        else:
-            #.join because the return values are lists, even though they shouldnt be
-            return_value = child_5_to_4_dict.get(category)
-            if return_value is not None:
-                category = ''.join(return_value)
-            
-            return_value = child_4_to_3_dict.get(category)
-            if return_value is not None:
-                category = ''.join(return_value)
-            
-            return_value = child_3_to_2_dict.get(category)
-            if return_value is not None:
-                category = ''.join(return_value)
-                pre_category = category
-                
-            return_value = child_2_to_1_dict.get(category)
-            if return_value is not None:
-                #To map the labels to depth 2 for vessel categories
-                #return value checks that the category's parent category is vessel
-                #if depth == 2:
-                #    if return_value == "Vessel":
-                #        target_labels.append(category)
-                #else:
-                category = ''.join(return_value)
-                if category == "Vessel":
-                    vessel_child_target_labels.append(pre_category)
-                    
-            target_labels.append(category)
-            pre_category = "empty"
-                    
+    pre_category = "Empty"
+    class_exists = bool
     
-    return target_labels, vessel_child_target_labels
+    for category in original_targets_categories:
+        #.join because the return values are lists, even though they shouldnt be
+        return_value = child_5_to_4_dict.get(category)
+        if return_value is not None:
+            pre_category = category
+            category = ''.join(return_value)
+        
+        return_value = child_4_to_3_dict.get(category)
+        if return_value is not None:
+            pre_category = category
+            category = ''.join(return_value)
+        
+        return_value = child_3_to_2_dict.get(category)
+        if return_value is not None:
+            pre_category = category
+            category = ''.join(return_value)
+            
+        return_value = child_2_to_1_dict.get(category)
+        if return_value is not None:
+            pre_category = category
+            category = ''.join(return_value)
+        
+        #Check if the category is not in the class hierarchy
+        class_exists_in_hierarchy = check_bad_category(category, parent_list, dictionaries)
+        if class_exists_in_hierarchy is False:
+            category = "Empty"
+
+        #For vessel type classification
+        if category == "Vessel":
+            vessel_labels.append(pre_category)
+        else:
+            vessel_labels.append("Empty")
+        
+        target_labels.append(category)
+        pre_category = "Empty"
+    
+    if vessel_classification is True:
+        return vessel_labels
+    else:
+        return target_labels
 
 if __name__ == "__main__":
     parent_list, dictionaries_list = return_class_dictionaries()

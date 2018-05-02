@@ -17,6 +17,7 @@ import sys
 from PIL import Image
 import Image_extractor
 import class_extractor
+import model_builder
 from sklearn import model_selection
 from keras import regularizers
 from keras.models import Sequential
@@ -175,32 +176,33 @@ def create_CNN_model_small(X_train, X_test, y_train, y_test, number_of_classes, 
 
     model = Sequential()
 
-    model.add(Conv2D(filters = 32,
+    model.add(Conv2D(filters = 128,
                     kernel_size = (5, 5),
                     padding = 'same',
                     activation = 'relu',
                     input_shape=input_shape))
     
-    model.add(Conv2D(filters = 64, 
+    model.add(Conv2D(filters = 128, 
                      kernel_size = (5, 5),
                      activation = 'relu',
                      padding = 'same'))    
     model.add(MaxPooling2D(2,2))
 
-    model.add(Conv2D(filters = 64, 
-                    kernel_size = (5, 5),
-                    padding='same',
-                    activation = 'relu'))
-
-    model.add(Conv2D(filters = 64, 
+    model.add(Conv2D(filters = 128, 
                  kernel_size = (3, 3),
                  padding='same',
                  activation = 'relu'))
     model.add(MaxPooling2D(2,2))
    #model.add(Dropout(0.1))
+   
+    model.add(Conv2D(filters = 128, 
+                 kernel_size = (3, 3),
+                 padding='same',
+                 activation = 'relu'))
+    model.add(MaxPooling2D(2,2))
 
     model.add(Flatten())
-    model.add(Dense(1024, activation = 'relu'))
+    model.add(Dense(256, activation = 'relu'))
     #model.add(Dropout(0.2))
     #model.add(Dense(256, activation = 'relu'))
     #model.add(Dropout(0.2))
@@ -217,35 +219,6 @@ def create_CNN_model_small(X_train, X_test, y_train, y_test, number_of_classes, 
     return model
 
 
-def train_model(model, X_train, X_test, y_train, y_test, learning_rate, n_epochs = 1, batch_size = 32):
-
-    history = model.fit(X_train, y_train, epochs = n_epochs, batch_size = batch_size,
-            validation_data = (X_test, y_test))
-
-    learning_rate_string = "%.7f" % learning_rate
-    title = "learning rate: " + learning_rate_string
-    
-    fig, ax = plt.subplots(2, 1)
-    ax[0].set_title(title)
-    ax[0].plot(history.history['acc'], 'ro-', label = "Train Accuracy")
-    ax[0].plot(history.history['val_acc'], 'go-', label = "Test Accuracy")
-    ax[0].set_xlabel("Epoch")
-    ax[0].set_ylabel("Accuracy / %")
-    ax[0].legend(loc = "best")
-    ax[0].grid('on')
-    
-    ax[1].plot(history.history['loss'], 'ro-', label = "Train Loss")
-    ax[1].plot(history.history['val_loss'], 'go-', label = "Test Loss")
-    ax[1].set_xlabel("Epoch")
-    ax[1].set_ylabel("Loss")
-    ax[1].legend(loc = "best")
-    ax[1].grid('on')
-    
-    plt.tight_layout()
-    plt.savefig("Last_results/Accuracy.pdf", bbox_inches = "tight")
-    
-    return history, model
-
 
 def split_data(imagedata, targets, test_size):
     
@@ -253,13 +226,9 @@ def split_data(imagedata, targets, test_size):
     
     return X_train, X_test, y_train, y_test
 
-def define_target_categories(imagefilepaths, targets, depth = 1):
+def define_target_categories(imagefilepaths, targets, banned_upper_category_labels, banned_vessel_category_labels, vessel_classification):
         
-    upper_category_labels, vessel_child_target_labels = class_extractor.return_upper_category_target_list(targets)
-    #counter = Counter(vessel_child_target_labels)
-    #print(counter)
-    #Calculate the amount of labels per category
-    #categories_upper_labels = Counter(upper_category_labels)
+    category_labels = class_extractor.return_upper_category_target_list(targets, vessel_classification)
     
     imageData_rgb_images = []
     upper_category_labels_rgb_images = []
@@ -270,12 +239,12 @@ def define_target_categories(imagefilepaths, targets, depth = 1):
         image = io.imread(imagepath)
         numpyImage = np.array(image)
         #io.imshow(numpyImage)
-        #print(upper_category_labels[i])
+        #print(category_labels[i])
         
         #Check that the image is 3 channeled
         if numpyImage.ndim == 3:
             imageData_rgb_images.append(numpyImage)
-            upper_category_labels_rgb_images.append(upper_category_labels[i])            
+            upper_category_labels_rgb_images.append(category_labels[i])            
         i = i + 1
 
     """ For debug purposes save used images to folder
@@ -299,7 +268,6 @@ def define_target_categories(imagefilepaths, targets, depth = 1):
     temp2 = []    
     #Remove categories not in parent list
     #Current filter in class extractor; these categories are not in any subgroup
-    label_counter = {}
     
     for image, label in zip(imageData_rgb_images, upper_category_labels_rgb_images):
         """For debug
@@ -308,22 +276,25 @@ def define_target_categories(imagefilepaths, targets, depth = 1):
         i += 1
         """
         
-        if label in parent_list:
-            #Remove ice and weather phenomen because not enough data
-            if label == "Ice" or label == "Weather phenomen" or label == "Misc object" or \
-            label == "Island" or label == "Shore" or label == "Vessel" or label == "Living being" or label == "Structure":
+        #if label in parent_list:
+        #Check banned labels, banned labels defined in main
+        
+        if label == "Empty":
+            continue
+        
+        if vessel_classification is True:
+            if label in banned_vessel_category_labels:
                 continue
             else:
-                #if label not in label_counter:
-                #    label_counter[label] = 1
-                #else:
-                #    if label_counter.get(label) > 500:
-                #        i = i + 1
-                #        continue
-                #    label_counter[label] += 1
-                    
                 temp1.append(image)
                 temp2.append(label)
+        else:
+            if label in banned_upper_category_labels:
+                continue
+            else:
+                temp1.append(image)
+                temp2.append(label)
+
                 
         #else:
             #print("label not in parent list")
@@ -350,7 +321,7 @@ def define_target_categories(imagefilepaths, targets, depth = 1):
     return finalData, categories
 
 def plot_labels_barchart(labels):
-
+    
     LabelCounter = Counter(labels)
     label_names = []
     label_amounts = []
@@ -361,72 +332,197 @@ def plot_labels_barchart(labels):
     #Amount of different labels
     #number_of_classes = len(counter)
 
+
     # this is for plotting purpose
     index = np.arange(len(label_names))
     plt.bar(index, label_amounts)
     plt.xlabel('Label', fontsize=10)
     plt.ylabel('Number of images', fontsize=10)
     plt.xticks(index, label_names, fontsize=10, rotation=30)
-    plt.title('Data distribution over labels')
+    plt.title('Label distribution')
     plt.show()
+    
+    def autolabel(rects):
+        for rect in rects:
+            h = rect.get_height()
+            ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d'%int(h),
+                    ha='center', va='bottom')
     
     return
 
+def other_way_to_plot():
+    
+    # Loss Curves
+    plt.figure(figsize=[8,6])
+    plt.plot(history.history['loss'],'r',linewidth=3.0)
+    plt.plot(history.history['val_loss'],'b',linewidth=3.0)
+    plt.legend(['Training loss', 'Validation Loss'],fontsize=18)
+    plt.xlabel('Epochs ',fontsize=16)
+    plt.ylabel('Loss',fontsize=16)
+    plt.title('Loss Curves',fontsize=16)
+     
+    # Accuracy Curves
+    plt.figure(figsize=[8,6])
+    plt.plot(history.history['acc'],'r',linewidth=3.0)
+    plt.plot(history.history['val_acc'],'b',linewidth=3.0)
+    plt.legend(['Training Accuracy', 'Validation Accuracy'],fontsize=18)
+    plt.xlabel('Epochs ',fontsize=16)
+    plt.ylabel('Accuracy',fontsize=16)
+    plt.title('Accuracy Curves',fontsize=16)
+    
+    return
+
+def train_model(model, X_train, X_test, y_train, y_test, learning_rate, n_epochs = 1, batch_size = 32):
+
+    history = model.fit(X_train, y_train, epochs = n_epochs, batch_size = batch_size,
+            validation_data = (X_test, y_test))
+
+    learning_rate_string = "%.7f" % learning_rate
+    title = "learning rate: " + learning_rate_string
+    
+    fig, ax = plt.subplots(2, 1)
+    ax[0].set_title(title)
+    ax[0].plot(history.history['acc'], 'ro-', label = "Train Accuracy")
+    ax[0].plot(history.history['val_acc'], 'go-', label = "Test Accuracy")
+    ax[0].set_xlabel("Epoch")
+    ax[0].set_ylabel("Accuracy")
+    ax[0].legend(loc = "best")
+    ax[0].grid('on')
+    
+    ax[1].plot(history.history['loss'], 'ro-', label = "Train Loss")
+    ax[1].plot(history.history['val_loss'], 'go-', label = "Test Loss")
+    ax[1].set_xlabel("Epoch")
+    ax[1].set_ylabel("Loss")
+    ax[1].legend(loc = "best")
+    ax[1].grid('on')
+    
+    plt.tight_layout()
+    plt.show()
+    try:
+        plt.savefig("Last_results/Accuracy.pdf", bbox_inches = "tight")
+    except:
+        print("error in figure saving")
+        return history, model
+    
+    return history, model
+
+def plot_history(history):
+    loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' not in s]
+    val_loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' in s]
+    acc_list = [s for s in history.history.keys() if 'acc' in s and 'val' not in s]
+    val_acc_list = [s for s in history.history.keys() if 'acc' in s and 'val' in s]
+    
+    if len(loss_list) == 0:
+        print('Loss is missing in history')
+        return 
+    
+    ## As loss always exists
+    epochs = range(1,len(history.history[loss_list[0]]) + 1)
+    
+    ## Loss
+    plt.figure(1)
+    for l in loss_list:
+        plt.plot(epochs, history.history[l], 'b', label='Training loss (' + str(str(format(history.history[l][-1],'.5f'))+')'))
+    for l in val_loss_list:
+        plt.plot(epochs, history.history[l], 'g', label='Validation loss (' + str(str(format(history.history[l][-1],'.5f'))+')'))
+    
+    plt.title('Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    
+    ## Accuracy
+    plt.figure(2)
+    for l in acc_list:
+        plt.plot(epochs, history.history[l], 'b', label='Training accuracy (' + str(format(history.history[l][-1],'.5f'))+')')
+    for l in val_acc_list:    
+        plt.plot(epochs, history.history[l], 'g', label='Validation accuracy (' + str(format(history.history[l][-1],'.5f'))+')')
+
+    plt.title('Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.show()
+
 if __name__ == '__main__':
+    
+    input_var = input("Vessel Classification (True/False): ")
+    
+    if input_var == "True":
+        vessel_classification = True
+    else:
+        vessel_classification = False
+    
+    banned_upper_category_labels = ["Shore", "Ice", "Weather phenomen", "Misc object", "Island"]
+    banned_vessel_category_labels = []
+    #vessel_subclasses = ["Cargo vessel", "Fishing vessel", "High speed craft", "Icebreaker", "Offshore vessel", "Passenger vessel", "Pleasure craft", "Military vessel", "Special vessel", "Tug"]
     
     if 'data_loaded' not in locals():    
         parent_list, dictionaries = class_extractor.return_class_dictionaries()    
         imagefilepaths, targets = load_data(globPath = 'ResizedImages/*.jpg')
         #imagefilepaths, targets = load_data(globPath = 'ResizedImages64x64/*.jpg')
-        finalData, labels = define_target_categories(imagefilepaths, targets, depth = 1)
+        finalData, labels = define_target_categories(imagefilepaths, targets, banned_upper_category_labels, banned_vessel_category_labels, vessel_classification)
         #X_train, X_test, y_train, y_test = split_data(finalData, labels) 
-        data_loaded = True    
-        
-        finalData = np.array(finalData)
-        
+        data_loaded = True            
+        finalData = np.array(finalData)        
         counter = Counter(labels)
         number_of_classes = len(counter)
+
     
-    #For test purposes
-    if len(labels) > 10:       
-
-        
-        lb = LabelBinarizer()
-        lb.fit(labels)
-        labels_binarized = lb.transform(labels)
-        #model implementation doesnt work if class amount == 2
-        if number_of_classes == 2:
-            labels_binarized = to_categorical(labels_binarized, num_classes=2)
-        
-        #Split data (CrossValidation needed)
-        test_size = 0.2
-        X_train, X_test, y_train, y_test = split_data(finalData, labels_binarized, test_size)
-        
-        
-        #Define hyperparameters
-        #learning_rates = [10**-7 , 10**-6, 10**-5, 10**-4 , 10**-3, 10**-2, 10**-1]
-        learning_rates = [10**-5]
-                    
-        #Training information
-        n_epochs = 75
-        batch_size = 32
-        
-        results = []
-        
-        for learning_rate in learning_rates:
-            #Create model
-            #model = create_CNN_model(X_train, X_test, y_train, y_test, number_of_classes)        
-            model = VGG16_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
-            #model = create_CNN_model_small(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
-            
-
-            history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, n_epochs, batch_size)            
+    lb = LabelBinarizer()
+    lb.fit(labels)
+    labels_binarized = lb.transform(labels)
+    #model implementation doesnt work without "if class amount == 2"
+    if number_of_classes == 2:
+        labels_binarized = to_categorical(labels_binarized, num_classes=2)
     
-            confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
-            
-        #Label chart
-        plot_labels_barchart(labels)
+    #Split data (CrossValidation needed)
+    test_size = 0.2
+    X_train, X_test, y_train, y_test = split_data(finalData, labels_binarized, test_size)
+    
+    
+    #Define hyperparameters
+    #learning_rates = [10**-7 , 10**-6, 10**-5, 10**-4 , 10**-3, 10**-2, 10**-1]
+    learning_rates = [10**-4]
+    #Training information
+    n_epochs = 10
+    batch_size = 32
+    
+    history_list = []
+    
+    for learning_rate in learning_rates:
+        model = model_builder.create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        
+        #model = model_builder.create_VGG16_freezed_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        """
+        model = create_CNN_model_small(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)     
+        """
+        history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, n_epochs, batch_size) 
+        plot_history(history)
+        history_list.append(history)
+        #confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+        
+    #Label chart
+    #plot_labels_barchart(labels)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
 def create_basic_classifiers():
     models = []    
     #Randomforst, extratrees, gradboost, adaboost
@@ -445,6 +541,6 @@ def create_basic_classifiers():
     
     return models
 
-
+"""
 
     
