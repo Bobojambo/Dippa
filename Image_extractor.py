@@ -161,7 +161,16 @@ def get_sub_images(images_dict, resize_argument, test_images_argument):
 
 def resize_and_save_image_batch(images, index, width=128, height=128, path="ResizedImages/"):
     
-    reSizedImages = []
+    paths = ["ResizedImages32x32/","ResizedImages64x64/","ResizedImages96x96/","ResizedImages128x128/","ResizedImages224x224/"]
+    #Eka kuva
+    if  index == 0:
+        #Ensimmäisen kuvan kohdalla alustaa kansiot
+        for path in paths:
+            if os.path.exists(path):
+                shutil.rmtree(path)
+            os.makedirs(path)    
+            
+            
     for image in images:
         
         cv2_im = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
@@ -171,66 +180,27 @@ def resize_and_save_image_batch(images, index, width=128, height=128, path="Resi
         #CV2 imp
         #reSizedImage = cv2.resize(image, (width, height))
         #PIL imp
-        reSizedImage = image.resize((width, height))
-        reSizedImages.append(reSizedImage)
-    
-    if path == None:
-        path = "Images/"
-    
-    
-    if  index == 0:
-        if os.path.exists(path):
-            shutil.rmtree(path)
-        os.makedirs(path)    
-    
-    for image in reSizedImages:
-        #image.show()
-        filename = "{}image{}.jpg".format(path,index)
-        #CV2
-        #cv2.imwrite(filename, image)
-        #PIL
-        image.save(filename)
-        index += 1
-        
-    return index
-
-        
-
-def save_images_to_folder(images, path=None):
-    
-    if path == None:
-        path = "Images/"
-        
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    os.makedirs(path)
-    
-    
-    index = 0
-    for image in images:
-        #image.show()
-        filename = "{}image{}.jpg".format(path,index)
-        #CV2
-        cv2.imwrite(filename, image)
-        #PIL
-        #image.save(filename)
-        index += 1
-        
-    return
-
-def resize_and_save_images(images, width=128, height=128):
-    reSizedImages = []
-    for image in images:
-        #CV2 imp
-        reSizedImage = cv2.resize(image, (width, height))
-        #PIL imp
         #reSizedImage = image.resize((width, height))
-        reSizedImages.append(reSizedImage)
+        reSizedImage = image.resize((32, 32))
+        reSizedImage.save("{}image{}.jpg".format("ResizedImages32x32/",index))
         
-    
-    save_images_to_folder(reSizedImages, path="ResizedImages/")
-    
-    return 
+        reSizedImage = image.resize((64, 64))
+        reSizedImage.save("{}image{}.jpg".format("ResizedImages64x64/",index))
+        
+        reSizedImage = image.resize((96, 96))
+        reSizedImage.save("{}image{}.jpg".format("ResizedImages96x96/",index))
+        
+        reSizedImage = image.resize((128, 128))
+        reSizedImage.save("{}image{}.jpg".format("ResizedImages128x128/",index))        
+        
+        reSizedImage = image.resize((224, 224))
+        reSizedImage.save("{}image{}.jpg".format("ResizedImages224x224/",index))
+        
+        index += 1
+            
+    return index
+        
+
 
 def create_classes_csv(classes):
 

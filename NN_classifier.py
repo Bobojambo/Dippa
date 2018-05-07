@@ -15,9 +15,11 @@ import os
 import shutil
 import sys
 from PIL import Image
+import cv2
 import Image_extractor
 import class_extractor
 import model_builder
+import generate_hyperparameters_CNN
 from sklearn import model_selection
 from keras import regularizers
 from keras.models import Sequential
@@ -29,6 +31,7 @@ from sklearn.preprocessing import LabelEncoder
 from keras.optimizers import SGD, Adam
 from keras.models import Model
 from keras.applications.vgg16 import VGG16
+from keras import metrics
 import confusion_matrix_implementation
 from keras.utils.np_utils import to_categorical
 from sklearn.metrics import accuracy_score
@@ -36,11 +39,25 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.utils import class_weight
 
+class Model_class:
+    
+    def __init__(self, hyperparameters, history, iteration, accuracy):
+        self.hyperparameters = hyperparameters
+        self.history = history
+        self.iteration = iteration
+        self.accuracy = accuracy
+        
+    def print_hyperparameters(self):
+        for parameter in self.hyperparameters:
+            print(parameter, self.hyperparameters[parameter])
+            
+        #for value in the_model.hyperparameters:
+        #    print(value, the_model.hyperparameters[value])
+            
 
-def load_data(globPath = 'Images/*.jpg'):
-
-    #globPath = 'Images/*.jpg'
+def load_data_from_folder(globPath = 'Images/*.jpg', test_data = False):
     
     list_not_sorted = []
     for filename in glob.glob(globPath):
@@ -62,167 +79,20 @@ def load_data(globPath = 'Images/*.jpg'):
             targets.append(str(values[1].rstrip()))            
     fp.close()
     
+    #For testing 20 first loaded images
+    
+    filepaths = filepaths[:500]
+    targets = targets[:500]
+    
+    
     return filepaths, targets
 
-def create_CNN_model(X_train, X_test, y_train, y_test, number_of_classes):
-    
-
-    #l1 = Regularizer()
-    input_shape = X_train.shape[1:]
-
-    model = Sequential()
-
-    model.add(Conv2D(filters = 96, 
-                    strides=4,
-                    kernel_size = (11, 11),
-                    activation = 'relu',
-                    input_shape=input_shape))
-   #l1 = Regularizer()
-
-    
-    model = Sequential()
-    
-    model.add(Conv2D(filters = 32, 
-                     kernel_size = (5, 5),
-                     activation = 'relu',
-                     padding = 'same',
-                     input_shape=(128,128,3)))    
-    model.add(MaxPooling2D(2,2))
-
-   
-    model.add(MaxPooling2D(2,2))
-   #model.add(Dropout(0.25))
-   
-    model.add(Conv2D(filters = 256, 
-    kernel_size = (5, 5),
-    padding='same',
-    activation = 'relu'))
-       #model.add(Dropout(0.2))   
-    model.add(MaxPooling2D(2,2))
-
-    model.add(Conv2D(filters = 384, 
-                 kernel_size = (3, 3),
-                 padding='same',
-                 activation = 'relu'))
-   #model.add(Dropout(0.1))
-    model.add(Conv2D(filters = 384, 
-                 kernel_size = (3, 3),
-                 padding='same',
-                 activation = 'relu'))
-                  
-    model.add(Conv2D(filters = 384, 
-                 kernel_size = (3, 3),
-                 padding='same',
-                 activation = 'relu'))
-                   
-    model.add(Conv2D(filters = 256, 
-                 kernel_size = (3, 3),
-                 padding='same',
-                 activation = 'relu'))
-    
-
-    model.add(Flatten())
-    model.add(Dense(2048, activation = 'relu'))
-    #model.add(Dropout(0.2))
-    #model.add(Dense(256, activation = 'relu'))
-    #model.add(Dropout(0.2))
-    model.add(Dense(number_of_classes, activation='softmax'))
-
-    model.summary()
-
-   #optimizer = SGD(lr = 1e-0)
-    optimizer = SGD(lr = 0.0001)
-    model.compile(optimizer = optimizer,
-    loss = 'categorical_crossentropy',
-    metrics = ['accuracy'])
-
-    return model
-
-def VGG16_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate):
-    
-    input_shape = X_train.shape[1:]
-    
-    base_model = VGG16(weights='imagenet', include_top=False, input_shape = input_shape)
-    
-    w = base_model.output
-    w = Flatten()(w)
-    w = Dense(1024, activation='relu')(w)
-    output = Dense(number_of_classes, activation = 'softmax')(w)
-    model = Model(inputs = [base_model.input], outputs = [output])
-    
-    
-    model.layers[-1].trainable = True
-    model.layers[-2].trainable = True
-    model.layers[-3].trainable = True
-    model.layers[-4].trainable = True
-    model.layers[-5].trainable = True
-    #model.layers[-6].trainable = True
-    #model.layers[-7].trainable = True
-    
-    model.summary()
-
-    optimizer = SGD(lr = learning_rate)
-    #optimizer = Adam(lr = 0.01)
-    model.compile(optimizer = optimizer,
-    loss = 'categorical_crossentropy',
-    metrics = ['accuracy'])
-
-    return model
-
-def create_CNN_model_small(X_train, X_test, y_train, y_test, number_of_classes, learning_rate):
-    
-        #l1 = Regularizer()
-    input_shape = X_train.shape[1:]
-
-    model = Sequential()
-
-    model.add(Conv2D(filters = 128,
-                    kernel_size = (5, 5),
-                    padding = 'same',
-                    activation = 'relu',
-                    input_shape=input_shape))
-    
-    model.add(Conv2D(filters = 128, 
-                     kernel_size = (5, 5),
-                     activation = 'relu',
-                     padding = 'same'))    
-    model.add(MaxPooling2D(2,2))
-
-    model.add(Conv2D(filters = 128, 
-                 kernel_size = (3, 3),
-                 padding='same',
-                 activation = 'relu'))
-    model.add(MaxPooling2D(2,2))
-   #model.add(Dropout(0.1))
-   
-    model.add(Conv2D(filters = 128, 
-                 kernel_size = (3, 3),
-                 padding='same',
-                 activation = 'relu'))
-    model.add(MaxPooling2D(2,2))
-
-    model.add(Flatten())
-    model.add(Dense(256, activation = 'relu'))
-    #model.add(Dropout(0.2))
-    #model.add(Dense(256, activation = 'relu'))
-    #model.add(Dropout(0.2))
-    model.add(Dense(number_of_classes, activation='softmax'))
-
-    model.summary()
-
-   #optimizer = SGD(lr = 1e-0)
-    optimizer = SGD(lr = learning_rate)
-    model.compile(optimizer = optimizer,
-    loss = 'categorical_crossentropy',
-    metrics = ['accuracy'])
-    
-    return model
 
 
 
 def split_data(imagedata, targets, test_size):
     
-    X_train, X_test, y_train, y_test = model_selection.train_test_split(imagedata, targets, test_size = test_size)
+    X_train, X_test, y_train, y_test = model_selection.train_test_split(imagedata, targets, test_size = test_size, random_state = 42)
     
     return X_train, X_test, y_train, y_test
 
@@ -372,40 +242,6 @@ def other_way_to_plot():
     
     return
 
-def train_model(model, X_train, X_test, y_train, y_test, learning_rate, n_epochs = 1, batch_size = 32):
-
-    history = model.fit(X_train, y_train, epochs = n_epochs, batch_size = batch_size,
-            validation_data = (X_test, y_test))
-
-    learning_rate_string = "%.7f" % learning_rate
-    title = "learning rate: " + learning_rate_string
-    
-    fig, ax = plt.subplots(2, 1)
-    ax[0].set_title(title)
-    ax[0].plot(history.history['acc'], 'ro-', label = "Train Accuracy")
-    ax[0].plot(history.history['val_acc'], 'go-', label = "Test Accuracy")
-    ax[0].set_xlabel("Epoch")
-    ax[0].set_ylabel("Accuracy")
-    ax[0].legend(loc = "best")
-    ax[0].grid('on')
-    
-    ax[1].plot(history.history['loss'], 'ro-', label = "Train Loss")
-    ax[1].plot(history.history['val_loss'], 'go-', label = "Test Loss")
-    ax[1].set_xlabel("Epoch")
-    ax[1].set_ylabel("Loss")
-    ax[1].legend(loc = "best")
-    ax[1].grid('on')
-    
-    plt.tight_layout()
-    plt.show()
-    try:
-        plt.savefig("Last_results/Accuracy.pdf", bbox_inches = "tight")
-    except:
-        print("error in figure saving")
-        return history, model
-    
-    return history, model
-
 def plot_history(history):
     loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' not in s]
     val_loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' in s]
@@ -444,67 +280,260 @@ def plot_history(history):
     plt.legend()
     plt.show()
 
-if __name__ == '__main__':
+
+
+
+
+
+def augment_data(X_train, y_train):
     
-    input_var = input("Vessel Classification (True/False): ")
+    X_train_augmented = []
+    y_train_augmented = []
+    for img, label in zip(X_train, y_train):
+        mirror_img = img[:, ::-1]
+        #mirror_img_Image = Image.fromarray(mirror_img, 'RGB')
+        #mirror_img_Image.show()
+        X_train_augmented.append(mirror_img)
+        y_train_augmented.append(label)
+    X_train_augmented = np.array(X_train_augmented)
+    y_train_augmented = np.array(y_train_augmented)
     
-    if input_var == "True":
-        vessel_classification = True
-    else:
-        vessel_classification = False
+    X_train_joined = np.concatenate((X_train, X_train_augmented))
+    y_train_joined = np.concatenate((y_train, y_train_augmented))
+    #X_train = np.append(X_train, X_train_augmented)
     
-    banned_upper_category_labels = ["Shore", "Ice", "Weather phenomen", "Misc object", "Island"]
+    return X_train_joined, y_train_joined
+
+
+def load_data(vessel_classification, data_augmentation, image_size = 96, call_from_CNN_generator = False):
+    
+
+    banned_upper_category_labels = ["Ice", "Weather phenomen", "Misc object", "Island"]
     banned_vessel_category_labels = []
     #vessel_subclasses = ["Cargo vessel", "Fishing vessel", "High speed craft", "Icebreaker", "Offshore vessel", "Passenger vessel", "Pleasure craft", "Military vessel", "Special vessel", "Tug"]
     
-    if 'data_loaded' not in locals():    
-        parent_list, dictionaries = class_extractor.return_class_dictionaries()    
-        imagefilepaths, targets = load_data(globPath = 'ResizedImages/*.jpg')
-        #imagefilepaths, targets = load_data(globPath = 'ResizedImages64x64/*.jpg')
-        finalData, labels = define_target_categories(imagefilepaths, targets, banned_upper_category_labels, banned_vessel_category_labels, vessel_classification)
-        #X_train, X_test, y_train, y_test = split_data(finalData, labels) 
-        data_loaded = True            
-        finalData = np.array(finalData)        
-        counter = Counter(labels)
-        number_of_classes = len(counter)
+    if image_size == 32:
+        globPath = 'ResizedImages32x32/*.jpg'
+    elif image_size == 64:
+        globPath = 'ResizedImages64x64/*.jpg'
+    elif image_size == 96:
+        globPath = 'ResizedImages96x96/*.jpg'
+    elif image_size == 128:
+        globPath = 'ResizedImages128x128/*.jpg'
+    elif image_size == 224:
+        globPath = 'ResizedImages224x224/*.jpg'
+        
+    parent_list, dictionaries = class_extractor.return_class_dictionaries()    
+    imagefilepaths, targets = load_data_from_folder(globPath)
+    finalData, labels = define_target_categories(imagefilepaths, targets, banned_upper_category_labels, banned_vessel_category_labels, vessel_classification)
+    data_loaded = True            
+    finalData = np.array(finalData)        
 
+    counter = Counter(labels)
+    number_of_classes = len(counter)
     
     lb = LabelBinarizer()
     lb.fit(labels)
     labels_binarized = lb.transform(labels)
+
     #model implementation doesnt work without "if class amount == 2"
     if number_of_classes == 2:
-        labels_binarized = to_categorical(labels_binarized, num_classes=2)
+        labels_binarized = to_categorical(labels_binarized, num_classes=2)    
+    
     
     #Split data (CrossValidation needed)
     test_size = 0.2
     X_train, X_test, y_train, y_test = split_data(finalData, labels_binarized, test_size)
     
+    if data_augmentation == True:
+        print("data augmentation")
+        X_train, y_train = augment_data(X_train, y_train)
+        
+    return X_train, X_test, y_train, y_test, labels, number_of_classes, lb, data_loaded
+
+def plot_history_LOSS_ACCURACY_DOTPLOT(history, model, learning_rate):
     
-    #Define hyperparameters
-    #learning_rates = [10**-7 , 10**-6, 10**-5, 10**-4 , 10**-3, 10**-2, 10**-1]
-    learning_rates = [10**-4]
-    #Training information
-    n_epochs = 10
-    batch_size = 32
+    learning_rate_string = "%.7f" % learning_rate
+    title = "learning rate: " + learning_rate_string
+    
+    fig, ax = plt.subplots(2, 1)
+    ax[0].set_title(title)
+    ax[0].plot(history.history['acc'], 'ro-', label = "Train Accuracy")
+    ax[0].plot(history.history['val_acc'], 'go-', label = "Test Accuracy")
+    ax[0].set_xlabel("Epoch")
+    ax[0].set_ylabel("Accuracy")
+    ax[0].legend(loc = "best")
+    ax[0].grid('on')
+    
+    ax[1].plot(history.history['loss'], 'ro-', label = "Train Loss")
+    ax[1].plot(history.history['val_loss'], 'go-', label = "Test Loss")
+    ax[1].set_xlabel("Epoch")
+    ax[1].set_ylabel("Loss")
+    ax[1].legend(loc = "best")
+    ax[1].grid('on')
+    
+    plt.tight_layout()
+    plt.show()
+    try:
+        plt.savefig("Last_results/Accuracy.pdf", bbox_inches = "tight")
+    except:
+        print("error in figure saving")
+        return history, model
+    
+    return
+
+def train_model(model, X_train, X_test, y_train, y_test, learning_rate, labelbinarizer, n_epochs = 1, batch_size = 32):
+    
+    #Class weight implementation
+    lb = labelbinarizer
+    training_labels = lb.inverse_transform(y_train)
+    le = LabelEncoder()
+    le.fit(training_labels)
+    training_labels_integers = le.transform(training_labels)
+    class_weights_for_training = class_weight.compute_class_weight('balanced', np.unique(training_labels_integers), training_labels_integers)
+    #Input the dict to model.fit(class_weight)
+    class_weights_dict_for_training = dict(enumerate(class_weights_for_training))
+    
+    history = model.fit(X_train, y_train, epochs = n_epochs, batch_size = batch_size, class_weight = class_weights_dict_for_training,
+            validation_data = (X_test, y_test))
+
+    plot_history_LOSS_ACCURACY_DOTPLOT(history, model, learning_rate)
+    
+    return history, model
+
+if __name__ == '__main__':
+    
+    if 'data_loaded' not in locals():
+        
+        input_var = input("Vessel Classification (True/False): ")
+        if input_var == "True":
+            vessel_classification = True
+        else:
+            vessel_classification = False
+        
+        input_var = input("Use Data Augmentation (True/False): ")
+        if input_var == "True":
+            data_augmentation = True
+        else:
+            data_augmentation = False
+            
+        X_train, X_test, y_train, y_test, labels, number_of_classes, lb, data_loaded \
+        = load_data(vessel_classification, data_augmentation)
+    
+    else:
+        print("Data already loaded")
+
+    
+    input_var = input("Generate CNN models (True/False): ")
+    
+    if input_var == "True":            
+        model_list = []
+        number_of_models = 2
+        n_epochs = 50
+        batch_size = 32
+        best_model_KERAS_MODEL = None
+        best_model_MODEL_CLASS = None
+        best_val_accuracy = 0
+        model_index = 0
+        # i number of random generated CNN models
+        i = 0           
+        while i < number_of_models:
+            
+            hyperparameters = generate_hyperparameters_CNN.generate_hyperparameters()
+            input_size = hyperparameters.get("input size")
+            X_train, X_test, y_train, y_test, labels, number_of_classes, lb, data_loaded = load_data(vessel_classification, data_augmentation, input_size)
+            
+            
+            model = generate_hyperparameters_CNN.generate_CNN(X_train, X_test, y_train, y_test, number_of_classes, hyperparameters)
+            learning_rate = hyperparameters.get("learning rate")           
+            history, model = train_model(model, X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size) 
+            
+            #Plotting, figures etc
+            plot_history(history)
+            confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+            
+            #Saving Model class, checking for best model. If best model, save model
+            #for later processing and save model class for parameter checking
+            loss_and_accuracy = model.evaluate(X_test, y_test)            
+            the_model = Model_class(hyperparameters, history, i, loss_and_accuracy[1])
+            
+            if the_model.accuracy > best_val_accuracy:
+                best_model_KERAS_MODEL = model
+                best_model_MODEL_CLASS = the_model                
+            model_list.append(the_model)
+            
+            i += 1
+        
+        #Show the results and hyperparameters of the best model
+        plot_history(history)
+        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)            
+        best_model_MODEL_CLASS.print_hyperparameters()
+        
+        #Old method for finding the best model
+        """
+        for model_class in model_list:            
+            if model_class.accuracy > best_val_accuracy:
+                best_val_accuracy = model_class.accuracy
+                model_index = model_class.iteration
+        """
+
+
+    input_var = input("Train VGG16 (True/False): ")
+    if input_var == "True":
+        #Training information
+        n_epochs = 10
+        batch_size = 32
+        #learning_rates = [10**-7 , 10**-6, 10**-5, 10**-4 , 10**-3, 10**-2, 10**-1]
+        learning_rate = 10**-4
+        
+        model = model_builder.create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)
+        plot_history(history)
+        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+        
+    input_var = input("Train ResNet (True/False): ")
+    if input_var == "True":
+        #Training information
+        n_epochs = 10
+        batch_size = 32
+        learning_rate = 10**-4
+        
+        model = model_builder.create_ResNet_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)
+        plot_history(history)
+        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+        
+    input_var = input("Train Mobilenet (True/False): ")
+    if input_var == "True":
+        #Training information
+        n_epochs = 10
+        batch_size = 32
+        learning_rate = 10**-4
+        
+        model = model_builder.create_MobileNet_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        history, model = train_model(model, X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)
+        plot_history(history)
+        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+    
+    """
+
+
     
     history_list = []
     
     for learning_rate in learning_rates:
-        model = model_builder.create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        #model = model_builder.create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
         
         #model = model_builder.create_VGG16_freezed_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
-        """
-        model = create_CNN_model_small(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)     
-        """
+
         history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, n_epochs, batch_size) 
         plot_history(history)
         history_list.append(history)
-        #confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
         
     #Label chart
     #plot_labels_barchart(labels)
-
+    """
 
 
 
