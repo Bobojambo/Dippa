@@ -1,0 +1,1 @@
+Stoppasi 48 epochin jälkeen

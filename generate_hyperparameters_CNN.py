@@ -52,7 +52,7 @@ def generate_CNN(X_train, X_test, y_train, y_test, number_of_classes, hyperparam
     j = 0
     while j < number_of_dense_layers:
         model.add(Dense(128, activation = 'relu'))
-        model.add(Dropout(0.2))
+        model.add(Dropout(0.25))
         j += 1
 
     model.add(Dense(number_of_classes, activation='softmax'))
@@ -69,19 +69,28 @@ def generate_CNN(X_train, X_test, y_train, y_test, number_of_classes, hyperparam
 def generate_hyperparameters():
     
     selected_parameters = {}
+    
     dense_layers = [1,2]
     convolution_layers = [1,2,3,4]
-    kernel_sizes = [5, 8, 11, 14, 17]
-    feature_maps = [32, 64, 96]
+    kernel_sizes = [5, 8, 11, 14]
+    feature_maps = [16, 32, 48, 64]
     learning_rate = [10**-6, 10**-2]
     input_size = [32, 64, 96, 128]
     
+    """
+    dense_layers = [2]
+    convolution_layers = [4]
+    kernel_sizes = [14]
+    feature_maps = [64]
+    learning_rate = [10**-6, 10**-2]
+    input_size = [96]
+    """
     dense_layers = random.choice(dense_layers)
     convolution_layers = random.choice(convolution_layers)
     kernel_sizes = random.choice(kernel_sizes)
     feature_maps = random.choice(feature_maps)
     input_size = random.choice(input_size)
-    learning_rate = random.uniform(10**-5, 10**-3)
+    learning_rate = random.uniform(learning_rate[0], learning_rate[1])
     
     selected_parameters["dense layers"] = dense_layers
     selected_parameters["convolution layers"] = convolution_layers
@@ -94,3 +103,4 @@ def generate_hyperparameters():
 
 if __name__ == '__main__':
     print("Nothing")
+    

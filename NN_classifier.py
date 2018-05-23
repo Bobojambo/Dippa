@@ -21,40 +21,31 @@ import class_extractor
 import model_builder
 import generate_hyperparameters_CNN
 from sklearn import model_selection
-from keras import regularizers
-from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Flatten, Dropout
-from keras.layers.convolutional import Conv2D, MaxPooling2D
-from keras.layers import CuDNNLSTM, GRU, LSTM
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.preprocessing import LabelEncoder
-from keras.optimizers import SGD, Adam
-from keras.models import Model
-from keras.applications.vgg16 import VGG16
-from keras import metrics
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 import confusion_matrix_implementation
 from keras.utils.np_utils import to_categorical
-from sklearn.metrics import accuracy_score
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.utils import class_weight
+import matplotlib.patches as mpatches
+import time
+import timeit
+#from pandas_ml import ConfusionMatrix
 
 class Model_class:
     
-    def __init__(self, hyperparameters, history, iteration, accuracy):
+    def __init__(self, hyperparameters = None, history = None, iteration = None, accuracy = None, lb = None, learning_rate = None, y_pred = None):
         self.hyperparameters = hyperparameters
         self.history = history
         self.iteration = iteration
         self.accuracy = accuracy
+        self.labelBinarizer = lb
+        self.learning_rate = learning_rate
+        self.y_pred = y_pred
         
     def print_hyperparameters(self):
         for parameter in self.hyperparameters:
             print(parameter, self.hyperparameters[parameter])
-            
-        #for value in the_model.hyperparameters:
-        #    print(value, the_model.hyperparameters[value])
             
 
 def load_data_from_folder(globPath = 'Images/*.jpg', test_data = False):
@@ -67,8 +58,7 @@ def load_data_from_folder(globPath = 'Images/*.jpg', test_data = False):
     
     filepaths = []
     for file in list_sorted:
-        filepaths.append(file)        
-    
+        filepaths.append(file)         
         
     targets = []
     with open('Classes/classes.csv', 'r') as fp:
@@ -79,15 +69,12 @@ def load_data_from_folder(globPath = 'Images/*.jpg', test_data = False):
             targets.append(str(values[1].rstrip()))            
     fp.close()
     
-    #For testing 20 first loaded images
-    
-    filepaths = filepaths[:500]
-    targets = targets[:500]
-    
-    
+    #For testing 500 first loaded images  
+    if test_data == True:
+        filepaths = filepaths[:500]
+        targets = targets[:500]    
+        
     return filepaths, targets
-
-
 
 
 def split_data(imagedata, targets, test_size):
@@ -116,22 +103,6 @@ def define_target_categories(imagefilepaths, targets, banned_upper_category_labe
             imageData_rgb_images.append(numpyImage)
             upper_category_labels_rgb_images.append(category_labels[i])            
         i = i + 1
-
-    """ For debug purposes save used images to folder
-    path = "ImagesUsed/"        
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    os.makedirs(path)    
-    
-    index = 0
-    for image, label in zip(imageData_rgb_images, upper_category_labels_rgb_images):
-        #image.show()
-        filename = "{}image{}{}.jpg".format(path,index,label)
-        io.imsave(filename, image)
-        index += 1
-        if index == 200:
-            break
-    """
     
     i = 0
     temp1 = []
@@ -139,13 +110,7 @@ def define_target_categories(imagefilepaths, targets, banned_upper_category_labe
     #Remove categories not in parent list
     #Current filter in class extractor; these categories are not in any subgroup
     
-    for image, label in zip(imageData_rgb_images, upper_category_labels_rgb_images):
-        """For debug
-        if i == 200:
-            break
-        i += 1
-        """
-        
+    for image, label in zip(imageData_rgb_images, upper_category_labels_rgb_images):        
         #if label in parent_list:
         #Check banned labels, banned labels defined in main
         
@@ -165,26 +130,6 @@ def define_target_categories(imagefilepaths, targets, banned_upper_category_labe
                 temp1.append(image)
                 temp2.append(label)
 
-                
-        #else:
-            #print("label not in parent list")
-            #sys.exit()
-    
-    """    For debug purposes save images to folder
-    path = "ImagesUsedFiltered/"        
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    os.makedirs(path)
-    
-    
-    index = 0
-    for image, label in zip(temp1, temp2):
-        #image.show()
-        filename = "{}image{}{}.jpg".format(path,index,label)
-        io.imsave(filename, image)
-        index += 1         
-    #"""
-    
     finalData = temp1
     categories = temp2
     
@@ -199,9 +144,6 @@ def plot_labels_barchart(labels):
         amount = LabelCounter.get(label)
         label_names.append(label)
         label_amounts.append(amount)
-    #Amount of different labels
-    #number_of_classes = len(counter)
-
 
     # this is for plotting purpose
     index = np.arange(len(label_names))
@@ -212,37 +154,24 @@ def plot_labels_barchart(labels):
     plt.title('Label distribution')
     plt.show()
     
-    def autolabel(rects):
-        for rect in rects:
-            h = rect.get_height()
-            ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d'%int(h),
-                    ha='center', va='bottom')
-    
     return
 
-def other_way_to_plot():
+def annot_max(x,y, ax=None):
     
-    # Loss Curves
-    plt.figure(figsize=[8,6])
-    plt.plot(history.history['loss'],'r',linewidth=3.0)
-    plt.plot(history.history['val_loss'],'b',linewidth=3.0)
-    plt.legend(['Training loss', 'Validation Loss'],fontsize=18)
-    plt.xlabel('Epochs ',fontsize=16)
-    plt.ylabel('Loss',fontsize=16)
-    plt.title('Loss Curves',fontsize=16)
-     
-    # Accuracy Curves
-    plt.figure(figsize=[8,6])
-    plt.plot(history.history['acc'],'r',linewidth=3.0)
-    plt.plot(history.history['val_acc'],'b',linewidth=3.0)
-    plt.legend(['Training Accuracy', 'Validation Accuracy'],fontsize=18)
-    plt.xlabel('Epochs ',fontsize=16)
-    plt.ylabel('Accuracy',fontsize=16)
-    plt.title('Accuracy Curves',fontsize=16)
-    
+    xmax = x[np.argmax(y)]
+    ymax = max(y)
+    text= "x={:.3f}, y={:.3f}".format(xmax, ymax)
+    if not ax:
+        ax=plt.gca()
+    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+    arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
+    kw = dict(xycoords='data',textcoords="axes fraction",
+              arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top")
+    ax.annotate(text, xy=(xmax, ymax), xytext=(0.94,0.96), **kw)    
     return
 
-def plot_history(history):
+
+def plot_history(history, learning_rate):
     loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' not in s]
     val_loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' in s]
     acc_list = [s for s in history.history.keys() if 'acc' in s and 'val' not in s]
@@ -262,10 +191,14 @@ def plot_history(history):
     for l in val_loss_list:
         plt.plot(epochs, history.history[l], 'g', label='Validation loss (' + str(str(format(history.history[l][-1],'.5f'))+')'))
     
-    plt.title('Loss')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
+    
+    
+    #plt.title('Loss')
+    plt.xlabel('Epochs', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+    plt.legend(fontsize=12)
+    plt.tick_params(axis='both', which='major', labelsize=10)
+    plt.savefig("Last_results/CNN_loss.pdf", bbox_inches = "tight")
     
     ## Accuracy
     plt.figure(2)
@@ -274,16 +207,17 @@ def plot_history(history):
     for l in val_acc_list:    
         plt.plot(epochs, history.history[l], 'g', label='Validation accuracy (' + str(format(history.history[l][-1],'.5f'))+')')
 
-    plt.title('Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.show()
+    #annot_max(epochs, history.history['acc'])
 
-
-
-
-
+    #plt.title('Accuracy')
+    plt.xlabel('Epochs', fontsize=12)
+    plt.ylabel('Accuracy', fontsize=12)
+    plt.legend(fontsize=12)
+    plt.tick_params(axis='both', which='major', labelsize=10)
+    plt.savefig("Last_results/CNN_accuracy.pdf", bbox_inches = "tight")
+    
+    plt.show()    
+    return
 
 def augment_data(X_train, y_train):
     
@@ -300,15 +234,14 @@ def augment_data(X_train, y_train):
     
     X_train_joined = np.concatenate((X_train, X_train_augmented))
     y_train_joined = np.concatenate((y_train, y_train_augmented))
-    #X_train = np.append(X_train, X_train_augmented)
     
     return X_train_joined, y_train_joined
 
 
-def load_data(vessel_classification, data_augmentation, image_size = 96, call_from_CNN_generator = False):
+def load_data(vessel_classification, data_augmentation, image_size = 224, call_from_CNN_generator = False, test_data = False):
     
-
     banned_upper_category_labels = ["Ice", "Weather phenomen", "Misc object", "Island"]
+    #banned_upper_category_labels = []
     banned_vessel_category_labels = []
     #vessel_subclasses = ["Cargo vessel", "Fishing vessel", "High speed craft", "Icebreaker", "Offshore vessel", "Passenger vessel", "Pleasure craft", "Military vessel", "Special vessel", "Tug"]
     
@@ -324,7 +257,7 @@ def load_data(vessel_classification, data_augmentation, image_size = 96, call_fr
         globPath = 'ResizedImages224x224/*.jpg'
         
     parent_list, dictionaries = class_extractor.return_class_dictionaries()    
-    imagefilepaths, targets = load_data_from_folder(globPath)
+    imagefilepaths, targets = load_data_from_folder(globPath, test_data)
     finalData, labels = define_target_categories(imagefilepaths, targets, banned_upper_category_labels, banned_vessel_category_labels, vessel_classification)
     data_loaded = True            
     finalData = np.array(finalData)        
@@ -338,8 +271,7 @@ def load_data(vessel_classification, data_augmentation, image_size = 96, call_fr
 
     #model implementation doesnt work without "if class amount == 2"
     if number_of_classes == 2:
-        labels_binarized = to_categorical(labels_binarized, num_classes=2)    
-    
+        labels_binarized = to_categorical(labels_binarized, num_classes=2)        
     
     #Split data (CrossValidation needed)
     test_size = 0.2
@@ -394,16 +326,51 @@ def train_model(model, X_train, X_test, y_train, y_test, learning_rate, labelbin
     #Input the dict to model.fit(class_weight)
     class_weights_dict_for_training = dict(enumerate(class_weights_for_training))
     
-    history = model.fit(X_train, y_train, epochs = n_epochs, batch_size = batch_size, class_weight = class_weights_dict_for_training,
+    #early stopping
+    earlyStopping = EarlyStopping(monitor='val_loss', patience=5, verbose=0, mode='auto')
+    
+    # checkpoint
+    filepath="weights.best.hdf5"
+    checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    
+    callbacks_list = [checkpoint, earlyStopping]
+    
+    history = model.fit(X_train, y_train, epochs = n_epochs, batch_size = batch_size, callbacks = callbacks_list, class_weight = class_weights_dict_for_training,
             validation_data = (X_test, y_test))
 
     plot_history_LOSS_ACCURACY_DOTPLOT(history, model, learning_rate)
     
     return history, model
 
+def predict_y_pred_for_X_test(lb, model, labels, X_test, y_test):
+    
+        #--------------Own implementation STARTS---------------------------
+    #Confusion matrix
+    le = LabelEncoder()
+    le.fit(labels)        
+    y_test_labels = lb.inverse_transform(y_test)
+    y_test_labels_encoded = le.transform(y_test_labels)
+    
+    numpy_list_labels = np.array(labels)
+    class_names = np.unique(numpy_list_labels)
+    
+    #Continuous values
+    y_pred = model.predict(X_test)
+    #LabelEncoded y_pred
+    y_pred = y_pred.argmax(axis=1)
+    
+    return y_pred
+    #--------------Own implementation ENDS---------------------------
+
 if __name__ == '__main__':
     
     if 'data_loaded' not in locals():
+        
+        input_var = input("Test Data Size (True/False): ")
+        if input_var == "True":
+            test_data = True
+        else:
+            test_data = False
         
         input_var = input("Vessel Classification (True/False): ")
         if input_var == "True":
@@ -418,7 +385,7 @@ if __name__ == '__main__':
             data_augmentation = False
             
         X_train, X_test, y_train, y_test, labels, number_of_classes, lb, data_loaded \
-        = load_data(vessel_classification, data_augmentation)
+        = load_data(vessel_classification, data_augmentation, test_data = test_data)
     
     else:
         print("Data already loaded")
@@ -428,7 +395,7 @@ if __name__ == '__main__':
     
     if input_var == "True":            
         model_list = []
-        number_of_models = 2
+        number_of_models = 3
         n_epochs = 50
         batch_size = 32
         best_model_KERAS_MODEL = None
@@ -441,7 +408,8 @@ if __name__ == '__main__':
             
             hyperparameters = generate_hyperparameters_CNN.generate_hyperparameters()
             input_size = hyperparameters.get("input size")
-            X_train, X_test, y_train, y_test, labels, number_of_classes, lb, data_loaded = load_data(vessel_classification, data_augmentation, input_size)
+            X_train, X_test, y_train, y_test, labels, number_of_classes, lb, data_loaded = \
+                load_data(vessel_classification, data_augmentation, image_size = input_size, test_data = test_data)
             
             
             model = generate_hyperparameters_CNN.generate_CNN(X_train, X_test, y_train, y_test, number_of_classes, hyperparameters)
@@ -449,24 +417,36 @@ if __name__ == '__main__':
             history, model = train_model(model, X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size) 
             
             #Plotting, figures etc
-            plot_history(history)
+            plot_history(history)            
             confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
             
             #Saving Model class, checking for best model. If best model, save model
             #for later processing and save model class for parameter checking
-            loss_and_accuracy = model.evaluate(X_test, y_test)            
-            the_model = Model_class(hyperparameters, history, i, loss_and_accuracy[1])
+            loss_and_accuracy = model.evaluate(X_test, y_test)
+            
+            the_model = Model_class(hyperparameters, history, i, loss_and_accuracy[1], lb)
             
             if the_model.accuracy > best_val_accuracy:
+                best_val_accuracy = the_model.accuracy
                 best_model_KERAS_MODEL = model
-                best_model_MODEL_CLASS = the_model                
+                best_model_MODEL_CLASS = the_model               
+                
             model_list.append(the_model)
             
-            i += 1
+            i += 1    
         
         #Show the results and hyperparameters of the best model
-        plot_history(history)
-        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)            
+        plot_history(best_model_MODEL_CLASS.history)
+        
+        #other_way_to_plot(best_model_MODEL_CLASS.history)
+        
+        #Load data for conf-matrix implementation        
+        best_model_input_size = best_model_MODEL_CLASS.hyperparameters.get("input size")        
+        X_train, X_test, y_train, y_test, labels, number_of_classes, lb, data_loaded = \
+                load_data(vessel_classification, data_augmentation, image_size = best_model_input_size, test_data = test_data)
+        
+        confusion_matrix_implementation.prepare_confusion_matrix(best_model_MODEL_CLASS.labelBinarizer, best_model_KERAS_MODEL, labels, X_test, y_test)            
+        
         best_model_MODEL_CLASS.print_hyperparameters()
         
         #Old method for finding the best model
@@ -481,95 +461,153 @@ if __name__ == '__main__':
     input_var = input("Train VGG16 (True/False): ")
     if input_var == "True":
         #Training information
-        n_epochs = 10
+        #model_list = []
+        #hyperparameters = []
+        #i = 0
+        n_epochs = 50
         batch_size = 32
-        #learning_rates = [10**-7 , 10**-6, 10**-5, 10**-4 , 10**-3, 10**-2, 10**-1]
-        learning_rate = 10**-4
+        #best_model_KERAS_MODEL = None
+        #best_model_MODEL_CLASS = None
+        #best_val_accuracy = 0
+        #learning_rates = [10**-6, 10**-5, 10**-4 , 10**-3, 10**-2, 10**-1]
+        #learning_rates = [10**-4, 10**-3]
+        learning_rates = [10**-4]
         
-        model = model_builder.create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
-        history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)
-        plot_history(history)
-        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+        for learning_rate in learning_rates:
+            
+            #V1
+            #model = model_builder.create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+            #V2
+            model = model_builder.create_VGG16_trainable_model2(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+            
+            history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)
+            #plot_history(history)
+            #confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+            
+            loss_and_accuracy = model.evaluate(X_test, y_test)      
+            y_pred = predict_y_pred_for_X_test(lb, model, labels, X_test, y_test)
+            the_model = Model_class(hyperparameters, history, i, loss_and_accuracy[1], lb, learning_rate, y_pred)
+
+            
+            if the_model.accuracy > best_val_accuracy:
+                best_val_accuracy = the_model.accuracy
+                best_model_KERAS_MODEL = model
+                best_model_MODEL_CLASS = the_model               
+                
+            model_list.append(the_model)            
+                
+        plot_history(best_model_MODEL_CLASS.history)
+        confusion_matrix_implementation.prepare_confusion_matrix(best_model_MODEL_CLASS.labelBinarizer, best_model_KERAS_MODEL, labels, X_test, y_test)            
         
+        best_model_MODEL_CLASS.print_hyperparameters()
+        
+        start = time.time()
+        model.predict(X_test)
+        end = time.time()
+        print("Total time predicting X_test:", end - start)
+        print("Averaged X_test: ", (end - start)/len(X_test))
+        start = time.time()
+        model.predict(X_test[:1])
+        end = time.time()
+        print("Single image time", end - start)
+                
     input_var = input("Train ResNet (True/False): ")
     if input_var == "True":
         #Training information
-        n_epochs = 10
+        n_epochs = 50
         batch_size = 32
+        learning_rates = [10**-4]
         learning_rate = 10**-4
+        i = None
+        model_list = []
+        hyperparameters = None
+        best_val_accuracy = 0
         
-        model = model_builder.create_ResNet_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
-        history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)
-        plot_history(history)
-        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
+        for learning_rate in learning_rates:
+            
+            #V1
+            #model = model_builder.create_ResNet_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+            #V2
+            model = model_builder.create_ResNet_trainable_model2(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+            history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)       
+        
+            loss_and_accuracy = model.evaluate(X_test, y_test)      
+            y_pred = predict_y_pred_for_X_test(lb, model, labels, X_test, y_test)
+            the_model = Model_class(hyperparameters, history, i, loss_and_accuracy[1], lb, learning_rate, y_pred)
+
+            
+            if the_model.accuracy > best_val_accuracy:
+                best_val_accuracy = the_model.accuracy
+                best_model_KERAS_MODEL = model
+                best_model_MODEL_CLASS = the_model               
+                
+            model_list.append(the_model)            
+                
+        plot_history(best_model_MODEL_CLASS.history, learning_rate)
+        confusion_matrix_implementation.prepare_confusion_matrix(best_model_MODEL_CLASS.labelBinarizer, best_model_KERAS_MODEL, labels, X_test, y_test)            
+        
+        best_model_MODEL_CLASS.print_hyperparameters()
+        
+        start = time.time()
+        model.predict(X_test)
+        end = time.time()
+        print("Total time predicting X_test:", end - start)
+        print("Averaged X_test: ", (end - start)/len(X_test))
+        start = time.time()
+        model.predict(X_test[:1])
+        end = time.time()
+        print("Single image time", end - start)
+        
+        for layer in model.layers:
+            print(layer, layer.trainable)
         
     input_var = input("Train Mobilenet (True/False): ")
     if input_var == "True":
         #Training information
-        n_epochs = 10
+        n_epochs = 50
         batch_size = 32
-        learning_rate = 10**-4
+        learning_rates = [10**-4]
+        learning_rate = 10**-3
+        i = None
+        model_list = []
+        hyperparameters = None
+        best_val_accuracy = 0
         
-        model = model_builder.create_MobileNet_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        #V1
+        #model = model_builder.create_MobileNet_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        #V2
+        model = model_builder.create_MobileNet_trainable_model2(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
+        
         history, model = train_model(model, X_train, X_test, y_train, y_test, learning_rate, lb, n_epochs, batch_size)
-        plot_history(history)
-        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
-    
-    """
-
-
-    
-    history_list = []
-    
-    for learning_rate in learning_rates:
-        #model = model_builder.create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
         
-        #model = model_builder.create_VGG16_freezed_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate)
-
-        history, model = train_model(model,  X_train, X_test, y_train, y_test, learning_rate, n_epochs, batch_size) 
-        plot_history(history)
-        history_list.append(history)
-        confusion_matrix_implementation.prepare_confusion_matrix(lb, model, labels, X_test, y_test)
         
-    #Label chart
-    #plot_labels_barchart(labels)
-    """
+        loss_and_accuracy = model.evaluate(X_test, y_test)      
+        y_pred = predict_y_pred_for_X_test(lb, model, labels, X_test, y_test)
+        the_model = Model_class(hyperparameters, history, i, loss_and_accuracy[1], lb, learning_rate, y_pred)
+        
+        if the_model.accuracy > best_val_accuracy:
+            best_val_accuracy = the_model.accuracy
+            best_model_KERAS_MODEL = model
+            best_model_MODEL_CLASS = the_model
+        
+        model_list.append(the_model) 
+        
+        plot_history(best_model_MODEL_CLASS.history, learning_rate)
+        confusion_matrix_implementation.prepare_confusion_matrix(best_model_MODEL_CLASS.labelBinarizer, best_model_KERAS_MODEL, labels, X_test, y_test)            
+
+        
+        start = time.time()
+        model.predict(X_test)
+        end = time.time()
+        print("Total time predicting X_test:", end - start)
+        print("Averaged X_test: ", (end - start)/len(X_test))
+        start = time.time()
+        model.predict(X_test[:1])
+        end = time.time()
+        print("Single image time", end - start)
+
+    #Plot labels    
+    plot_labels_barchart(labels)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"""
-def create_basic_classifiers():
-    models = []    
-    #Randomforst, extratrees, gradboost, adaboost
-    esa = False
-    if esa == True:
-        X_train = np.ravel(X_train)
-        X_test = np.ravel(X_test)
-        n_trees = 100
-        clf_list2 = [RandomForestClassifier(n_estimators = n_trees), ExtraTreesClassifier(n_estimators = n_trees), GradientBoostingClassifier(n_estimators = n_trees), AdaBoostClassifier(n_estimators = n_trees) ]
-        clf_name2 = ["Random Forest", "Extra Trees", "GradientBoost", "Adaboost"]
-        for clf,name in zip(clf_list2, clf_name2):
-            clf.fit(X_train, y_train)
-            y_pred = clf.predict(X_test)
-            score = accuracy_score(y_test, y_pred)
-            print(name, " Score: ", score)   
-    
-    return models
-
-"""
-
-    

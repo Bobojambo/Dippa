@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.preprocessing import LabelEncoder
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def load_testdata():
 
@@ -39,7 +40,7 @@ def load_testdata():
 def plot_confusion_matrix(cm, classes,
                           normalize=False,
                           title='Confusion matrix',
-                          cmap=plt.cm.Blues):
+                          cmap=plt.cm.Greens):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
@@ -54,7 +55,9 @@ def plot_confusion_matrix(cm, classes,
 
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
-    plt.colorbar()
+    #plt.colorbar() 
+    plt.colorbar(fraction=0.046, pad=0.04)
+    
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=45)
     plt.yticks(tick_marks, classes)
@@ -70,6 +73,7 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     
+
 
 def prepare_confusion_matrix(lb, model, labels, X_test, y_test):
     
@@ -102,7 +106,32 @@ def prepare_confusion_matrix(lb, model, labels, X_test, y_test):
     plt.savefig("Last_results/Matrix.pdf", bbox_inches = "tight")
     
     # Plot normalized confusion matrix
+    plt.figure(figsize=(7,7))
+    plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
+                          title='Normalized confusion matrix')
+    plt.tight_layout()
+    plt.savefig("Last_results/MatrixNormalized.pdf", bbox_inches = "tight")
+    
+    plt.show()
+    
+    return
+
+def prepare_confusion_matrix2(y_pred, y_test_labels_encoded, class_names):
+    
+   
+    # Compute confusion matrix
+    cnf_matrix = confusion_matrix(y_test_labels_encoded, y_pred)
+    np.set_printoptions(precision=2)
+    
+    # Plot non-normalized confusion matrix
     plt.figure()
+    plot_confusion_matrix(cnf_matrix, classes=class_names,
+                          title='Confusion matrix, without normalization')        
+    plt.tight_layout()
+    plt.savefig("Last_results/Matrix.pdf", bbox_inches = "tight")
+    
+    # Plot normalized confusion matrix
+    plt.figure(figsize=(7,7))
     plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
                           title='Normalized confusion matrix')
     plt.tight_layout()
@@ -114,3 +143,4 @@ def prepare_confusion_matrix(lb, model, labels, X_test, y_test):
 
 if __name__ == '__main__':
     print("nothing")
+    prepare_confusion_matrix(best_model_MODEL_CLASS.labelBinarizer, best_model_KERAS_MODEL, labels, X_test, y_test)            
