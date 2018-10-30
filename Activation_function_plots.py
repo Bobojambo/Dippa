@@ -11,7 +11,7 @@ import matplotlib.patches as mpatches
 
 
 def relu(x_values):
-    title = "ReLU (x)"
+    title = "ReLU (z)"
     value_pairs = []
     y_values = []
     for x_value in x_values:
@@ -24,7 +24,7 @@ def relu(x_values):
     return np.array(y_values), title
 
 def threshold(x_values):
-    title = "Threshold (x)"
+    title = "Threshold (z)"
     value_pairs = []
     y_values = []
     for x_value in x_values:
@@ -41,7 +41,7 @@ def softmax(x):
     return x
 
 def sigmoid(x_values):
-    title = "Logistic sigmoid (x)"
+    title = "Logistic sigmoid (z)"
     y_values = []
     for x_value in x_values:
         y_value = 1 / (1 + np.exp(-x_value))
@@ -49,7 +49,7 @@ def sigmoid(x_values):
     return np.array(y_values), title
 
 def tanh(x_values):
-    title = "Tanh (x)"
+    title = "Tanh (z)"
     y_values = []
     for x_value in x_values:
         y_value = np.tanh(x_value)
@@ -127,5 +127,6 @@ if __name__ == "__main__":
     
     plt.subplots_adjust(top=1.2, bottom=0.08, left=0.10, right=0.95, hspace=0.3,
                     wspace=0.35)
-    
+    plt.savefig("Last_results/Activation_functions.pdf", bbox_inches = "tight")
     plt.show()
+    

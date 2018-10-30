@@ -6,9 +6,7 @@ Created on Mon Feb 12 16:44:22 2018
 """
 
 import xml.etree.ElementTree as ET
-import numpy as np
 import glob
-import matplotlib.pyplot as plt
 from PIL import Image
 import sys
 import class_extractor

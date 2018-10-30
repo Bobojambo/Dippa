@@ -72,11 +72,11 @@ def generate_hyperparameters():
     
     dense_layers = [1,2]
     convolution_layers = [1,2,3,4]
-    kernel_sizes = [5, 8, 11, 14]
+    kernel_sizes = [3, 5, 7, 9, 11]
     feature_maps = [16, 32, 48, 64]
-    learning_rate = [10**-6, 10**-2]
+    learning_rate = [10**-6, 10**-3]
     input_size = [32, 64, 96, 128]
-    
+        
     """
     dense_layers = [2]
     convolution_layers = [4]
@@ -91,6 +91,15 @@ def generate_hyperparameters():
     feature_maps = random.choice(feature_maps)
     input_size = random.choice(input_size)
     learning_rate = random.uniform(learning_rate[0], learning_rate[1])
+    
+    best_model_test = True
+    if best_model_test == True:
+        dense_layers = 2
+        convolution_layers = 4
+        kernel_sizes = 9
+        feature_maps = 64
+        learning_rate = 0.000799056232806463
+        input_size = 128
     
     selected_parameters["dense layers"] = dense_layers
     selected_parameters["convolution layers"] = convolution_layers

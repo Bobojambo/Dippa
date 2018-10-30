@@ -14,6 +14,12 @@ from keras.applications.vgg19 import VGG19
 from keras.applications.resnet50 import ResNet50
 from keras.applications.mobilenet import MobileNet
 
+def return_the_optimizer(learning_rate):
+    
+    selected_optimizer = SGD(lr = learning_rate)
+    
+    return selected_optimizer
+
 def create_VGG16_trainable_model(X_train, X_test, y_train, y_test, number_of_classes, learning_rate):
     
     input_shape = X_train.shape[1:]
@@ -50,16 +56,17 @@ def create_VGG16_trainable_model2(X_train, X_test, y_train, y_test, number_of_cl
     input_shape = X_train.shape[1:]    
     vgg16 = VGG16(weights='imagenet', include_top=False, input_shape = input_shape)
     
-    for layer in vgg16.layers[:-10]:
-        layer.trainable = True
+    #for layer in vgg16.layers[:-4]:
+    #    layer.trainable = False
         
-    for layer in vgg16.layers:
-        print(layer, layer.trainable)
+    #for layer in vgg16.layers:
+    #    print(layer, layer.trainable)
         
     model.add(vgg16)
     model.add(Flatten())
+    model.add(Dropout(0.5))
     model.add(Dense(256, activation='relu'))
-    model.add(Dropout(0.25))
+    model.add(Dropout(0.5))
     model.add(Dense(number_of_classes, activation='softmax'))
     
     model.summary()
@@ -188,6 +195,7 @@ def create_MobileNet_trainable_model2(X_train, X_test, y_train, y_test, number_o
     
     model.add(mobilenet)
     model.add(Flatten())
+    #model.add(Dropout(0.3))
     model.add(Dense(number_of_classes, activation='softmax'))
     
     model.summary()
